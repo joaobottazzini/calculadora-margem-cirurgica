@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de margem cirúrgica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: formulário à esquerda, veredito à direita; régua das faixas e regras embaixo */
+:root{
+  --bg:#EEF2F1; --paper:#FFFFFF; --ink:#13201F; --muted:#5B6B69; --line:#D3DCDA;
+  --accent:#0F5C57; --accent-soft:#DCEDEB;
+  --ok:#1F7A4D; --ok-soft:#DDF1E6; --go:#2B5FA8; --go-soft:#E0EAF7;
+  --warn:#A5660A; --warn-soft:#FBEBD0; --bad:#B3261E; --bad-soft:#F8DEDC;
+  --seg-imp:#9AA9A7; --seg-med:#6F8BB0; --seg-mat:#C79A55;
+  --f-display:"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-family:var(--f-num);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(28px,5vw,40px);line-height:1.1;margin:0;text-wrap:balance}
+.lede{margin:0;color:var(--muted);max-width:62ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px;align-items:start}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.card h2{font-family:var(--f-display);font-weight:600;font-size:18px;margin:0}
+.examples{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.examples span{font-size:13px;color:var(--muted)}
+.chip{font:500 13px var(--f-body);border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip:focus-visible,.seg button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.field .label{font-weight:600;font-size:14px}
+.field .hint{font-size:12.5px;color:var(--muted)}
+.money{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg);overflow:hidden}
+.money span{font-family:var(--f-num);color:var(--muted);padding-inline:12px 4px}
+.money input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:500 18px var(--f-num);padding:10px 12px 10px 4px;font-variant-numeric:tabular-nums}
+select{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:500 15px var(--f-body);padding:10px 12px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--bg);color:var(--ink);font:600 15px var(--f-num);padding:10px 0;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--paper)}
+.verdict{border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:6px;border:1px solid transparent}
+.verdict .tag{font-family:var(--f-num);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.verdict .word{font-family:var(--f-display);font-weight:700;font-size:clamp(30px,6vw,42px);line-height:1}
+.verdict p{margin:0;max-width:52ch;color:var(--ink)}
+.v-ok{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+.v-go{background:var(--go-soft);color:var(--go);border-color:var(--go)}
+.v-warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.v-bad{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.v-none{background:var(--bg);color:var(--muted);border-color:var(--line)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+@media (max-width:420px){.stats{grid-template-columns:1fr 1fr}}
+.stat{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .k{font-size:12.5px;color:var(--muted);line-height:1.3}
+.stat .n{font:600 18px var(--f-num);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.neg{color:var(--bad)}
+.split h3,.scale h3{font-size:13px;font-weight:600;margin:0 0 8px;color:var(--muted)}
+.bar{display:flex;height:30px;border-radius:6px;overflow:hidden;background:var(--bg)}
+.bar div{height:100%;transition:width .25s ease}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;flex:none}
+.legend b{font-family:var(--f-num);font-weight:500}
+.track{position:relative;height:14px;display:flex;border-radius:4px;overflow:hidden}
+.track div{height:100%}
+.marker{position:absolute;top:-6px;width:3px;height:26px;background:var(--ink);border-radius:2px;transform:translateX(-50%);transition:left .25s ease}
+.ticks{position:relative;height:18px;font:500 11.5px var(--f-num);color:var(--muted);margin-top:6px}
+.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.note{font-size:13.5px;border-left:3px solid var(--warn);padding:8px 12px;background:var(--warn-soft);border-radius:0 6px 6px 0}
+.note.bad{border-color:var(--bad);background:var(--bad-soft)}
+.note.ok{border-color:var(--ok);background:var(--ok-soft)}
+.manual{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.manual{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:460px){.manual{grid-template-columns:1fr}}
+.band::after{content:"";position:absolute;top:16px;right:16px;width:16px;height:16px;border-radius:4px;background:var(--c, var(--line))}
+.band{position:relative;border-top:4px solid var(--c, var(--line));background:var(--paper);border-radius:0 0 8px 8px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.band .t{font-family:var(--f-display);font-weight:700;font-size:20px;line-height:1.2;padding-right:28px}
+.band .r{font:500 13px var(--f-num);color:var(--muted)}
+.band p{margin:0;font-size:14px}
+.sec-title{font-family:var(--f-display);font-weight:600;font-size:22px;margin:0}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+ol.rules{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th:first-child,td:first-child{padding-left:0}
+th:last-child,td:last-child{padding-right:0}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;white-space:nowrap}
+td.sit{white-space:nowrap;width:1%}
+td.atr{white-space:nowrap}
+.pill{display:inline-flex;align-items:center;font-size:12px;font-weight:600;line-height:1;padding:5px 10px;border-radius:999px;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)} .p-bad{background:var(--bad-soft);color:var(--bad)} .p-none{background:var(--bg);color:var(--muted)}
+.small{font-size:12.5px;color:var(--muted)}
+footer{font-size:12.5px;color:var(--muted);max-width:80ch}
+@media (prefers-reduced-motion:reduce){.bar div,.marker{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Calculadora de margem</div>
+    <h1>Vale a pena fazer esta cirurgia?</h1>
+    <p class="lede">Preencha os quatro campos com os dados da cirurgia. A calculadora mostra quanto sobra depois de imposto, médico e material, e em qual faixa a cirurgia cai.</p>
+  </header>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="t-dados">
+      <h2 id="t-dados">Dados da cirurgia</h2>
+      <div class="examples">
+        <span>Exemplos:</span>
+        <button class="chip" data-ex="0" type="button">Exemplo 1</button>
+        <button class="chip" data-ex="1" type="button">Exemplo 2</button>
+        <button class="chip" data-ex="2" type="button">Exemplo 3</button>
+      </div>
+      <div class="field">
+        <label for="nf">Valor da nota fiscal</label>
+        <div class="money"><span>R$</span><input id="nf" inputmode="decimal" autocomplete="off" value="78.000"></div>
+      </div>
+      <div class="field">
+        <span class="label" id="l-med">Percentual</span>
+        <div class="seg" role="group" aria-labelledby="l-med">
+          <button type="button" data-med="0.2" aria-pressed="false">20%</button>
+          <button type="button" data-med="0.3" aria-pressed="true">30%</button>
+          <button type="button" data-med="0" aria-pressed="false">0%</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="mat">Custo do material</label>
+        <div class="money"><span>R$</span><input id="mat" inputmode="decimal" autocomplete="off" value="23.212"></div>
+        <span class="hint">O preço pago ao fornecedor, incluindo o que foi aberto e não voltou.</span>
+      </div>
+      <div class="field">
+        <label for="conv">Quem vai pagar</label>
+        <select id="conv"></select>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Resultado" aria-live="polite">
+      <div id="verdict" class="verdict v-none">
+        <span class="tag" id="v-tag">Resultado</span>
+        <span class="word" id="v-word">—</span>
+        <p id="v-text">Preencha o valor da nota.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="k">Sobra para as contas fixas</span><span class="n" id="s-mc">—</span></div>
+        <div class="stat"><span class="k">Sobra em % da nota</span><span class="n" id="s-mcp">—</span></div>
+        <div class="stat"><span class="k">Material / nota</span><span class="n" id="s-matp">—</span></div>
+      </div>
+      <div class="split">
+        <h3>Para onde vai o dinheiro da nota</h3>
+        <div class="bar" id="bar" role="img" aria-label="Divisão da nota"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="scale">
+        <h3>Onde ela cai na régua (sobra em % da nota)</h3>
+        <div style="position:relative">
+          <div class="track">
+            <div style="flex:17.6;background:var(--bad)"></div>
+            <div style="flex:12.8;background:var(--warn)"></div>
+            <div style="flex:14.6;background:var(--go)"></div>
+            <div style="flex:25;background:var(--ok)"></div>
+          </div>
+          <div class="marker" id="marker" style="left:50%"></div>
+        </div>
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <div id="notes" style="display:flex;flex-direction:column;gap:8px"></div>
+    </section>
+  </div>
+
+  <section style="display:flex;flex-direction:column;gap:14px" aria-labelledby="t-faixas">
+    <h2 class="sec-title" id="t-faixas">As quatro faixas</h2>
+    <div class="manual">
+      <div class="band" style="--c:var(--ok)"><span class="t" style="color:var(--ok)">Priorizar</span><span class="r">sobra 35% ou mais</span><p>Paga a parte dela nas contas fixas e ainda sobra. São as cirurgias mais desejadas.</p></div>
+      <div class="band" style="--c:var(--go)"><span class="t" style="color:var(--go)">Aceitar</span><span class="r">sobra de 20% a 35%</span><p>Ajuda a pagar as contas fixas. Não cobre a parte dela sozinha, mas está na média ou acima.</p></div>
+      <div class="band" style="--c:var(--warn)"><span class="t" style="color:var(--warn)">Cuidado</span><span class="r">sobra de 7,6% a 20%</span><p>Deixa pouco e puxa a média para baixo. Só aceite se baixar o preço do material ou pegar o material consignado.</p></div>
+      <div class="band" style="--c:var(--bad)"><span class="t" style="color:var(--bad)">Negar</span><span class="r">sobra abaixo de 7,6%</span><p>Uma glosa, um frete ou um material aberto e a cirurgia já dá prejuízo. Renegocie antes ou recuse.</p></div>
+    </div>
+  </section>
+
+  <div class="two">
+    <section class="card" aria-labelledby="t-regras">
+      <h2 id="t-regras">Regras de bolso</h2>
+      <ol class="rules">
+        <li>Faça a conta <strong>antes</strong> de aceitar, na hora da cotação. Depois não dá mais para negociar o material.</li>
+        <li>Toda cirurgia que deixa sobra ajuda a pagar as contas. Recusar uma cirurgia da faixa Aceitar deixa a empresa mais pobre.</li>
+        <li>O que mais muda o resultado é o material. Imposto e médico são sempre a mesma fatia da nota.</li>
+        <li>Cirurgia grande na faixa Aceitar vale mais em reais do que cirurgia pequena na faixa Priorizar.</li>
+        <li>Pagador que atrasa custa dinheiro. A calculadora já desconta esse custo no resultado.</li>
+      </ol>
+    </section>
+    <section class="card" aria-labelledby="t-conv">
+      <h2 id="t-conv">Como cada pagador se comporta</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Pagador</th><th>Situação</th><th>Atraso típico</th></tr></thead>
+          <tbody id="convtable"></tbody>
+        </table>
+      </div>
+      <span class="small">Classificação pelo histórico de atraso de cada pagador.</span>
+    </section>
+  </div>
+
+  <footer>Premissas: impostos de 12,4% da nota; a parte de cada cirurgia nas contas fixas é de 35% da nota; o atraso de um pagador custa 2,11% ao mês sobre a nota, por 4 meses. Frete fica de fora da conta. Os limites devem ser revistos quando as contas fixas ou o faturamento mudarem.</footer>
+</div>
+
+<script>
+const IMP = 0.124, PARTE = 0.35, TAXA = 0.0211, MESES = 4;
+const CUSTO_ATRASO = Math.pow(1 + TAXA, MESES) - 1;
+const CONV = [
+  {id:"unimed", n:"Unimed", s:"ok", a:"Em dia"},
+  {id:"cnu", n:"Central Nacional Unimed", s:"ok", a:"Em dia"},
+  {id:"amil", n:"Amil", s:"ok", a:"Em dia"},
+  {id:"bradesco", n:"Bradesco Saúde", s:"warn", a:"~2 meses"},
+  {id:"cassi", n:"Cassi", s:"warn", a:"~4 meses"},
+  {id:"geap", n:"GEAP", s:"warn", a:"~4 meses"},
+  {id:"assefaz", n:"Assefaz", s:"bad", a:"7 meses ou mais"},
+  {id:"outro", n:"Outro / não sei", s:"none", a:"Sem histórico"}
+];
+const SLAB = {ok:"Bom pagador", warn:"Atrasa", bad:"Evitar", none:"Sem histórico"};
+const EX = [
+  {nf:78000, med:0.3, mat:23212, conv:"unimed"},
+  {nf:18000, med:0.3, mat:2500, conv:"geap"},
+  {nf:6050, med:0.2, mat:1680, conv:"unimed"}
+];
+const $ = id => document.getElementById(id);
+const sel = $("conv");
+CONV.forEach(c => { const o = document.createElement("option"); o.value = c.id; o.textContent = c.n + " · " + SLAB[c.s]; sel.appendChild(o); });
+sel.value = "unimed";
+$("convtable").innerHTML = CONV.filter(c => c.id !== "outro").map(c =>
+  `<tr><td>${c.n}</td><td class="sit"><span class="pill p-${c.s}">${SLAB[c.s]}</span></td><td class="atr">${c.a}</td></tr>`).join("");
+
+let med = 0.3;
+const brl = v => (v < 0 ? "−" : "") + "R$ " + Math.abs(v).toLocaleString("pt-BR", {minimumFractionDigits:0, maximumFractionDigits:0});
+const pct = v => (v * 100).toLocaleString("pt-BR", {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
+function parse(s){
+  s = String(s).trim().replace(/[^\d.,-]/g, "");
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if ((s.match(/\./g) || []).length > 1 || /\.\d{3}$/.test(s)) s = s.replace(/\./g, "");
+  const n = parseFloat(s); return isFinite(n) ? n : 0;
+}
+function fmtInput(el){ const n = parse(el.value); if (n > 0) el.value = n.toLocaleString("pt-BR", {maximumFractionDigits:2}); }
+
+const SCALE_MIN = -10, SCALE_MAX = 60;
+const pos = p => Math.max(0, Math.min(100, (p * 100 - SCALE_MIN) / (SCALE_MAX - SCALE_MIN) * 100));
+$("ticks").innerHTML = [0, 7.6, 20.4, 35, 50].map(t => `<span style="left:${pos(t/100)}%">${t.toLocaleString("pt-BR")}%</span>`).join("");
+
+function band(p){
+  if (p >= 0.35) return {cls:"v-ok", w:"Priorizar", t:"Ótima. Paga a parte dela nas contas fixas e ainda sobra."};
+  if (p >= 0.204) return {cls:"v-go", w:"Aceitar", t:"Boa. Ajuda a pagar as contas fixas, mas não cobre a parte dela sozinha."};
+  if (p >= 0.076) return {cls:"v-warn", w:"Cuidado", t:"Fraca. Deixa pouco. Só aceite se conseguir baixar o preço do material."};
+  return {cls:"v-bad", w:"Negar", t:"Não compensa. Risco real de perder dinheiro. Renegocie o material ou recuse."};
+}
+
+function calc(){
+  const nf = parse($("nf").value), mat = parse($("mat").value);
+  const c = CONV.find(x => x.id === sel.value);
+  const v = $("verdict"), notes = [];
+  if (nf <= 0){
+    v.className = "verdict v-none"; $("v-word").textContent = "—"; $("v-text").textContent = "Preencha o valor da nota.";
+    ["s-mc","s-mcp","s-matp"].forEach(id => $(id).textContent = "—");
+    $("bar").innerHTML = ""; $("legend").innerHTML = ""; $("notes").innerHTML = ""; return;
+  }
+  const imp = nf * IMP, dr = nf * med, mc = nf - imp - dr - mat;
+  const atraso = c.s === "warn" ? nf * CUSTO_ATRASO : 0;
+  const mcAdj = mc - atraso, p = mcAdj / nf;
+  let b = band(Math.round(p * 1000) / 1000);
+  if (c.s === "bad") b = {cls:"v-bad", w:"Evitar", t:"Pagador com histórico de atraso muito longo. Só faça com pagamento antecipado ou garantia."};
+  v.className = "verdict " + b.cls;
+  $("v-tag").textContent = c.s === "warn" ? "Resultado, já descontando o atraso" : "Resultado";
+  $("v-word").textContent = b.w; $("v-text").textContent = b.t;
+
+  const mcEl = $("s-mc"); mcEl.textContent = brl(mcAdj); mcEl.className = "n " + (mcAdj < 0 ? "neg" : "");
+  $("s-mcp").textContent = pct(p);
+  $("s-matp").textContent = pct(mat / nf);
+
+  const segs = [
+    {k:"Impostos", v:imp, c:"var(--seg-imp)"},
+    {k:"Médico", v:dr, c:"var(--seg-med)"},
+    {k:"Material", v:mat, c:"var(--seg-mat)"},
+    {k:"Atraso do pagador", v:atraso, c:"var(--warn)"},
+    {k:"Sobra", v:Math.max(0, mcAdj), c:"var(--ok)"}
+  ].filter(s => s.v > 0);
+  const tot = segs.reduce((a, s) => a + s.v, 0);
+  $("bar").innerHTML = segs.map(s => `<div style="width:${s.v / tot * 100}%;background:${s.c}" title="${s.k}"></div>`).join("");
+  $("legend").innerHTML = segs.map(s => `<span><i style="background:${s.c}"></i>${s.k} <b>${brl(s.v)}</b></span>`).join("");
+  $("marker").style.left = pos(p) + "%";
+
+  const parte = nf * PARTE, dif = mcAdj - parte;
+  notes.push(`<div class="note ${dif >= 0 ? "ok" : ""}">A parte desta cirurgia nas contas fixas é <strong>${brl(parte)}</strong>. ${dif >= 0 ? `Ela cobre e ainda sobram <strong>${brl(dif)}</strong>.` : `Faltam <strong>${brl(-dif)}</strong>.`}</div>`);
+  if (c.s === "warn") notes.push(`<div class="note">${c.n} costuma atrasar. Se atrasar 4 meses, o custo do dinheiro parado é de ${brl(atraso)}. Sem atraso, a sobra seria ${brl(mc)} (${pct(mc / nf)}).</div>`);
+  if (c.s === "none") notes.push(`<div class="note">Sem histórico deste pagador. A conta considera que ele paga em dia.</div>`);
+  if (mat > nf) notes.push(`<div class="note bad">O material está maior que a nota. Confira os valores.</div>`);
+  $("notes").innerHTML = notes.join("");
+}
+
+document.querySelectorAll(".seg button").forEach(btn => btn.addEventListener("click", () => {
+  med = parseFloat(btn.dataset.med);
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === btn ? "true" : "false"));
+  calc();
+}));
+["nf","mat"].forEach(id => { const el = $(id); el.addEventListener("input", calc); el.addEventListener("blur", () => { fmtInput(el); calc(); }); });
+sel.addEventListener("change", calc);
+document.querySelectorAll(".chip").forEach(btn => btn.addEventListener("click", () => {
+  const e = EX[+btn.dataset.ex];
+  $("nf").value = e.nf.toLocaleString("pt-BR"); $("mat").value = e.mat.toLocaleString("pt-BR"); sel.value = e.conv;
+  med = e.med;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", parseFloat(x.dataset.med) === med ? "true" : "false"));
+  calc();
+}));
+calc();
+</script>
+
+</body>
+</html>
